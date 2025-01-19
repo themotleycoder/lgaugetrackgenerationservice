@@ -8,6 +8,7 @@ import os
 class TrackPiece:
     type: Literal['straight', 'curve']
     color: str
+    direction: Literal['left', 'right'] = 'right'  # Default to right curve
     angle: float = 0
     
 class TrackSystem:
@@ -18,22 +19,29 @@ class TrackSystem:
         self.curve_outer_radius = 40  # 40 studs
         self.curve_inner_radius = 32  # 32 studs
         
-    def create_curved_segment(self, x: float, y: float, angle: float, color: str) -> Tuple[float, float, float]:
+    def create_curved_segment(self, x: float, y: float, angle: float, color: str, direction: str = 'right') -> Tuple[float, float, float]:
         """Creates a curved track segment and returns ending position and angle"""
         start_rad = math.radians(angle)
         sweep_angle = 22.5  # Degrees
-        end_angle = angle + sweep_angle
+        # For left curves, subtract the sweep angle instead of adding
+        end_angle = angle + sweep_angle if direction == 'right' else angle - sweep_angle
         end_rad = math.radians(end_angle)
         
-        # Calculate center point of the curve
-        center_x = x - self.curve_outer_radius * math.sin(start_rad)
-        center_y = y + self.curve_outer_radius * math.cos(start_rad)
+        # Calculate center point of the curve - mirror for left curves
+        if direction == 'right':
+            center_x = x - self.curve_outer_radius * math.sin(start_rad)
+            center_y = y + self.curve_outer_radius * math.cos(start_rad)
+            outer_end_x = center_x + self.curve_outer_radius * math.sin(end_rad)
+            outer_end_y = center_y - self.curve_outer_radius * math.cos(end_rad)
+        else:  # left curve
+            center_x = x + self.curve_outer_radius * math.sin(start_rad)
+            center_y = y - self.curve_outer_radius * math.cos(start_rad)
+            outer_end_x = center_x - self.curve_outer_radius * math.sin(end_rad)
+            outer_end_y = center_y + self.curve_outer_radius * math.cos(end_rad)
         
-        # Calculate start and end points for outer and inner curves
+        # Start point is the same for both directions
         outer_start_x = x
         outer_start_y = y
-        outer_end_x = center_x + self.curve_outer_radius * math.sin(end_rad)
-        outer_end_y = center_y - self.curve_outer_radius * math.cos(end_rad)
         
         # Calculate inner points parallel to the curve at start and end
         inner_start_x = x - self.track_width * math.cos(start_rad - math.pi/2)
@@ -45,10 +53,13 @@ class TrackSystem:
         
         # Draw the curved piece
         p.M(outer_start_x, outer_start_y)  # Start at outer edge
-        p.A(self.curve_outer_radius, self.curve_outer_radius, 0, 0, 1,
+        # Reverse sweep flags for left curves
+        sweep_flag_outer = 1 if direction == 'right' else 0
+        sweep_flag_inner = 0 if direction == 'right' else 1
+        p.A(self.curve_outer_radius, self.curve_outer_radius, 0, 0, sweep_flag_outer,
             outer_end_x, outer_end_y)  # Draw outer curve
         p.L(inner_end_x, inner_end_y)  # Draw end cap
-        p.A(self.curve_inner_radius, self.curve_inner_radius, 0, 0, 0,
+        p.A(self.curve_inner_radius, self.curve_inner_radius, 0, 0, sweep_flag_inner,
             inner_start_x, inner_start_y)  # Draw inner curve
         p.L(outer_start_x, outer_start_y)  # Connect back to start
         
@@ -96,7 +107,7 @@ class TrackSystem:
         for piece in pieces:
             if piece.type == 'curve':
                 current_x, current_y, current_angle = self.create_curved_segment(
-                    current_x, current_y, current_angle, piece.color
+                    current_x, current_y, current_angle, piece.color, piece.direction
                 )
             else:  # straight
                 current_x, current_y, current_angle = self.create_straight_segment(
@@ -107,18 +118,21 @@ class TrackSystem:
 track = TrackSystem()
 
 pieces = [
-    TrackPiece(type='curve', color='red'),
-    TrackPiece(type='curve', color='blue'),
-    TrackPiece(type='curve', color='green'),
-    TrackPiece(type='curve', color='yellow'),
+    # Start with right turn
+    TrackPiece(type='curve', color='red', direction='right'),
+    TrackPiece(type='curve', color='blue', direction='right'),
     TrackPiece(type='straight', color='purple'),
+    # Left turn
+    TrackPiece(type='curve', color='green', direction='left'),
+    TrackPiece(type='curve', color='yellow', direction='left'),
     TrackPiece(type='straight', color='orange'),
-    TrackPiece(type='curve', color='red'),
-    TrackPiece(type='curve', color='blue'),
+    # Right turn
+    TrackPiece(type='curve', color='red', direction='right'),
+    TrackPiece(type='curve', color='blue', direction='right'),
     TrackPiece(type='straight', color='purple'),
-    TrackPiece(type='straight', color='orange'),
-    TrackPiece(type='curve', color='green'),
-    TrackPiece(type='curve', color='yellow'),
+    # Final left turn to complete the pattern
+    TrackPiece(type='curve', color='green', direction='left'),
+    TrackPiece(type='curve', color='yellow', direction='left'),
 ]
 
 track.draw_track_sequence(pieces)
@@ -126,7 +140,3 @@ track.drawing.set_pixel_scale(2)
 
 # Save and display the drawing
 track.drawing.save_svg('track_output.svg')
-
-# Open the SVG file in the default web browser
-import webbrowser
-webbrowser.open('file://' + os.path.realpath('track_output.svg'))
