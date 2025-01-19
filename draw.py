@@ -16,8 +16,8 @@ class TrackSystem:
         self.drawing = draw.Drawing(width, height, origin='center', viewBox='-300 -300 600 600')
         self.track_width = 8  # 8 studs wide
         self.straight_length = 16  # 16 studs long
-        self.curve_outer_radius = 40  # 40 studs
-        self.curve_inner_radius = 32  # 32 studs
+        self.curve_outer_radius = 44  # 40 studs + half track width (4 studs)
+        self.curve_inner_radius = 36  # 40 studs - half track width (4 studs)
         
     def create_curved_segment(self, x: float, y: float, angle: float, color: str, direction: str = 'right') -> Tuple[float, float, float]:
         """Creates a curved track segment and returns ending position and angle"""
@@ -101,7 +101,8 @@ class TrackSystem:
     def create_switch_segment(self, x: float, y: float, angle: float, color: str, direction: str = 'right') -> Tuple[float, float, float, float, float, float]:
         """Creates a switch track segment and returns ending positions and angles for both routes"""
         rad = math.radians(angle)
-        switch_length = 32  # 32 studs long
+        switch_length = 32  # 32 studs long for straight route
+        diverging_length = 34.64  # Calculated length for 22.5° diverging route with 32 stud x-projection
         crossing_angle = math.radians(32.5)  # 32.5° crossing vee
         diverging_angle = 22.5  # 22.5° diverging route (in degrees for return value)
         diverging_rad = math.radians(diverging_angle)  # Convert to radians for calculations
@@ -110,16 +111,25 @@ class TrackSystem:
         straight_end_x = x + switch_length * math.cos(rad)
         straight_end_y = y + switch_length * math.sin(rad)
         
-        # Calculate diverging route endpoints
-        diverging_rad = rad + (diverging_rad if direction == 'right' else -diverging_rad)
-        diverging_end_x = x + switch_length * math.cos(diverging_rad)
-        diverging_end_y = y + switch_length * math.sin(diverging_rad)
-        
-        # Calculate control points for the diverging curve
-        # The control point is where the straight and diverging routes split
+        # Calculate split point (where diverging route begins)
         split_distance = switch_length * 0.3  # Split point at 30% of the length
         split_x = x + split_distance * math.cos(rad)
         split_y = y + split_distance * math.sin(rad)
+        
+        # Calculate diverging route endpoint (same x-projection as straight route)
+        diverging_rad = rad + (diverging_rad if direction == 'right' else -diverging_rad)
+        diverging_end_x = x + diverging_length * math.cos(rad)  # Use diverging_length for x-projection
+        # Calculate y offset based on diverging length
+        y_offset = diverging_length * math.tan(math.radians(diverging_angle))
+        diverging_end_y = y + diverging_length * math.sin(rad) + (y_offset if direction == 'right' else -y_offset)
+        
+        # Calculate radius for diverging curve
+        # Distance from split point to end point determines the radius
+        dx = diverging_end_x - split_x
+        dy = diverging_end_y - split_y
+        chord_length = math.sqrt(dx*dx + dy*dy)
+        # Radius calculation based on chord length and angle
+        curve_radius = chord_length / (2 * math.sin(math.radians(diverging_angle/2)))
         
         # Draw main route (straight path)
         p_straight = draw.Path(fill=color, stroke='black', stroke_width=0.5)
@@ -149,12 +159,34 @@ class TrackSystem:
         diverging_end_inner_x = diverging_end_x - self.track_width * math.cos(diverging_rad - math.pi/2)
         diverging_end_inner_y = diverging_end_y - self.track_width * math.sin(diverging_rad - math.pi/2)
         
-        # Draw diverging route from split point
-        p_diverging.M(split_x, split_y)
-        p_diverging.L(diverging_end_x, diverging_end_y)
-        p_diverging.L(diverging_end_inner_x, diverging_end_inner_y)
-        p_diverging.L(split_x - self.track_width * math.cos(rad - math.pi/2),
-                     split_y - self.track_width * math.sin(rad - math.pi/2))
+        # Draw diverging route as a curve
+        p_diverging.M(split_x, split_y)  # Start at split point
+        
+        # Calculate center point for the arc - curve should bend away from straight route
+        if direction == 'right':
+            # For right curves, rotate 90° clockwise from the straight path
+            center_x = split_x + curve_radius * math.sin(rad + math.pi/2)
+            center_y = split_y - curve_radius * math.cos(rad + math.pi/2)
+            sweep_flag = 0
+        else:
+            # For left curves, rotate 90° counterclockwise from the straight path
+            center_x = split_x + curve_radius * math.sin(rad - math.pi/2)
+            center_y = split_y - curve_radius * math.cos(rad - math.pi/2)
+            sweep_flag = 1
+            
+        # Draw outer curve
+        p_diverging.A(curve_radius, curve_radius, 0, 0, sweep_flag,
+                     diverging_end_x, diverging_end_y)
+        
+        # Calculate and draw inner curve
+        inner_split_x = split_x - self.track_width * math.cos(rad - math.pi/2)
+        inner_split_y = split_y - self.track_width * math.sin(rad - math.pi/2)
+        inner_end_x = diverging_end_x - self.track_width * math.cos(diverging_rad - math.pi/2)
+        inner_end_y = diverging_end_y - self.track_width * math.sin(diverging_rad - math.pi/2)
+        
+        p_diverging.L(inner_end_x, inner_end_y)  # Draw end cap
+        p_diverging.A(curve_radius - self.track_width, curve_radius - self.track_width,
+                     0, 0, 1 - sweep_flag, inner_split_x, inner_split_y)  # Draw inner curve with opposite sweep
         p_diverging.Z()
         self.drawing.append(p_diverging)
         
@@ -206,12 +238,11 @@ main_path = [
 # After switch, define separate pieces for each path
 straight_path = [
     TrackPiece(type='straight', color='green'),
-    TrackPiece(type='straight', color='green')
 ]
 
 diverging_path = [
     TrackPiece(type='curve', color='purple', direction='left'),  # Match switch direction
-    TrackPiece(type='straight', color='green')
+    # TrackPiece(type='straight', color='green'),
 ]
 
 # Draw main path up to switch
