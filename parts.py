@@ -12,6 +12,13 @@ class CurvedTrack:
     self.length = 15.71
     self.connections = ["start", "end"]
 
+class SwitchTrack:
+  def __init__(self):
+    self.length = 32  # 32 studs long
+    self.crossing_angle = 32.5  # 32.5° crossing vee
+    self.diverging_angle = 22.5  # 22.5° diverging route
+    self.connections = ["start", "straight_end", "diverging_end"]  # 3 connection points
+
 # ... (define other track classes)
 
 # Create a graph
