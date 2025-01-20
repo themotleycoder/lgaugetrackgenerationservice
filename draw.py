@@ -238,7 +238,28 @@ main_path = [
 # After switch, define separate pieces for each path
 straight_path = [
     TrackPiece(type='straight', color='green'),
+    TrackPiece(type='curve', color='purple', direction='left'),
+    TrackPiece(type='curve', color='purple', direction='left'),
+    TrackPiece(type='curve', color='purple', direction='left'),
+    TrackPiece(type='curve', color='purple', direction='left'),
+    TrackPiece(type='curve', color='purple', direction='left'),
+    TrackPiece(type='curve', color='purple', direction='left'),
+    TrackPiece(type='curve', color='purple', direction='left'),
+    TrackPiece(type='curve', color='purple', direction='left'),
+    TrackPiece(type='straight', color='green'),
+    TrackPiece(type='straight', color='green'),
+    TrackPiece(type='straight', color='green'),
+    TrackPiece(type='straight', color='green'),
+    TrackPiece(type='curve', color='purple', direction='left'),
+    TrackPiece(type='curve', color='purple', direction='left'),
+    TrackPiece(type='curve', color='purple', direction='left'),
+    TrackPiece(type='curve', color='purple', direction='left'),
+    TrackPiece(type='curve', color='purple', direction='left'),
+    TrackPiece(type='curve', color='purple', direction='left'),
+    TrackPiece(type='curve', color='purple', direction='left'),
+    TrackPiece(type='curve', color='purple', direction='left')
 ]
+
 
 diverging_path = [
     TrackPiece(type='curve', color='purple', direction='left'),  # Match switch direction
