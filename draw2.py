@@ -236,7 +236,32 @@ def create_example_layout():
     track = TrackSystem()
     
     # Create a circle with 16 right curves
-    layout = [TrackPiece(type='curve', direction='left') for _ in range(16)]
+    # layout = [TrackPiece(type='curve', direction='left') for _ in range(16)]
+
+    layout = [
+        TrackPiece(type='straight'),
+        TrackPiece(type='curve', direction='right'),
+        TrackPiece(type='curve', direction='right'),
+        TrackPiece(type='straight'),
+        TrackPiece(type='curve', direction='right'),
+        TrackPiece(type='curve', direction='right'),
+        TrackPiece(type='curve', direction='right'),
+        TrackPiece(type='curve', direction='right'),
+        TrackPiece(type='curve', direction='right'),
+        TrackPiece(type='curve', direction='right'),
+        TrackPiece(type='straight'),
+        TrackPiece(type='straight'),
+        TrackPiece(type='curve', direction='right'),
+        TrackPiece(type='curve', direction='right'),
+        TrackPiece(type='straight'),
+        TrackPiece(type='curve', direction='right'),
+        TrackPiece(type='curve', direction='right'),
+        TrackPiece(type='curve', direction='right'),
+        TrackPiece(type='curve', direction='right'),
+        TrackPiece(type='curve', direction='right'),
+        TrackPiece(type='curve', direction='right'),
+        TrackPiece(type='straight'),
+    ]
     
     track.create_track_layout(layout)
     track.drawing.save_svg('lego_track_layout.svg')
