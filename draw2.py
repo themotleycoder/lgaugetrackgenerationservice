@@ -13,9 +13,10 @@ class TrackSystem:
     def __init__(self, width=4096, height=4096):
         # Using a much larger viewBox for bigger layouts
         self.drawing = draw.Drawing(width, height, origin='center', viewBox='-2048 -2048 4096 4096')
-        self.track_width = 77  
-        self.straight_length = 149
+        self.track_width = 80  
+        self.straight_length = 160
         self.curve_radius = 400
+        self.curve_left_vertical_offset = 27.5
         
         # Add zoom controls
         self.add_zoom_controls()
@@ -157,49 +158,66 @@ class TrackSystem:
         end_angle = angle + (sweep_angle if direction == 'right' else -sweep_angle)
         rad = math.radians(angle)
         
-        # Constants for curve geometry
-        dx = 159  # X offset for right curve
-        dy = 31.2  # Y offset for right curve
-        
-        # Calculate offsets based on current angle
         if direction == 'right':
+            # Right curve parameters (these work well)
             self.add_track_piece(x, y, angle, 'curve', direction)
-            # Apply rotation matrix to the offset
-            cos_angle = math.cos(rad)
-            sin_angle = math.sin(rad)
-            end_x = x + (dx * cos_angle - dy * sin_angle)
-            end_y = y + (dx * sin_angle + dy * cos_angle)
+            dx = 170.5
+            dy = 33.5
         else:
-            self.add_track_piece(x, y-25.5, angle, 'curve', direction)
-            # Different offsets for left curve
-            dx = 120
-            dy = -23
-            # Apply rotation matrix to the offset
-            cos_angle = math.cos(rad)
-            sin_angle = math.sin(rad)
-            end_x = x + (dx * cos_angle - dy * sin_angle)
-            end_y = y + (dx * sin_angle + dy * cos_angle)
+            # For left curves, we need to flip the vertical offset based on the current angle
+            # Calculate if we're in the "flipped" state (between 90 and 270 degrees)
+            normalized_angle = angle % 360
+            if normalized_angle < 0:
+                normalized_angle += 360
+            is_flipped = 90 < normalized_angle < 270
             
+            # Apply the vertical offset with the correct sign based on orientation
+            vertical_offset = self.curve_left_vertical_offset * (-1 if is_flipped else 1)
+            self.add_track_piece(x, y - vertical_offset, angle, 'curve', direction)
+            
+            dx = 140
+            dy = -27.5  # Base offset
+            # Flip dy if we're in the inverted state
+            # if is_flipped:
+            #     dy *= -1
+                
+        
+        # Apply rotation matrix to the offset
+        cos_angle = math.cos(rad)
+        sin_angle = math.sin(rad)
+        end_x = x + (dx * cos_angle - dy * sin_angle)
+        end_y = y + (dx * sin_angle + dy * cos_angle)
+                
         return (end_x, end_y, end_angle)
 
     def add_switch_segment(self, x: float, y: float, angle: float, direction: str = 'right') -> Tuple[float, float, float, float, float, float]:
         """Add a switch track piece and return ending positions and angles for both routes"""
         self.add_track_piece(x, y, angle, 'switch', direction)
         
-        # Calculate endpoints
-        rad = math.radians(angle)
-        switch_length = self.straight_length * 2  # 32 studs long
-        diverging_angle = 22.5  # 22.5° diverging route
+        # Calculate endpoints    
+        switch_length = self.straight_length * 2  # 32 studs
+        diverge_angle = 22.5  # Standard LEGO curve angle
         
         # Straight route end
+        rad = math.radians(angle)
         straight_end_x = x + switch_length * math.cos(rad)
         straight_end_y = y + switch_length * math.sin(rad)
         
         # Diverging route end
-        diverging_end_angle = angle + (diverging_angle if direction == 'right' else -diverging_angle)
-        diverging_rad = math.radians(diverging_end_angle)
-        diverging_end_x = x + switch_length * math.cos(diverging_rad)
-        diverging_end_y = y + switch_length * math.sin(diverging_rad)
+        diverging_end_angle = angle + (diverge_angle if direction == 'right' else -diverge_angle)
+        div_rad = math.radians(angle)
+        
+        # Fine-tuned offsets based on SVG analysis
+        if direction == 'right':
+            dx = 339.5  # Measured from SVG
+            dy = 132.5   # Measured from SVG
+            diverging_end_x = x + (dx * math.cos(div_rad) - dy * math.sin(div_rad))
+            diverging_end_y = y + (dx * math.sin(div_rad) + dy * math.cos(div_rad))
+        else:
+            dx = 282.84
+            dy = -115.8
+            diverging_end_x = x + (dx * math.cos(div_rad) - dy * math.sin(div_rad))
+            diverging_end_y = y + (dx * math.sin(div_rad) + dy * math.cos(div_rad))
         
         return (straight_end_x, straight_end_y, angle,
                 diverging_end_x, diverging_end_y, diverging_end_angle)
@@ -235,31 +253,36 @@ class TrackSystem:
 def create_example_layout():
     track = TrackSystem()
     
-    # Create a circle with 16 right curves
-    # layout = [TrackPiece(type='curve', direction='left') for _ in range(16)]
-
+    # Layout matching the reference image
     layout = [
+        # Start with straight piece
         TrackPiece(type='straight'),
-        TrackPiece(type='curve', direction='right'),
-        TrackPiece(type='curve', direction='right'),
+        
+        # First left turn
+        TrackPiece(type='curve', direction='left'),
+        
+        # Straight section after left turn
         TrackPiece(type='straight'),
+        
+        # Large right curve section (approximately 10-11 curve pieces to form most of a circle)
         TrackPiece(type='curve', direction='right'),
         TrackPiece(type='curve', direction='right'),
         TrackPiece(type='curve', direction='right'),
         TrackPiece(type='curve', direction='right'),
         TrackPiece(type='curve', direction='right'),
         TrackPiece(type='curve', direction='right'),
+        TrackPiece(type='curve', direction='right'),
+        TrackPiece(type='curve', direction='right'),
+        TrackPiece(type='curve', direction='right'),
+        TrackPiece(type='curve', direction='right'),
+        
+        # Straight section before final left turn
         TrackPiece(type='straight'),
-        TrackPiece(type='straight'),
-        TrackPiece(type='curve', direction='right'),
-        TrackPiece(type='curve', direction='right'),
-        TrackPiece(type='straight'),
-        TrackPiece(type='curve', direction='right'),
-        TrackPiece(type='curve', direction='right'),
-        TrackPiece(type='curve', direction='right'),
-        TrackPiece(type='curve', direction='right'),
-        TrackPiece(type='curve', direction='right'),
-        TrackPiece(type='curve', direction='right'),
+        
+        # Final left turn
+        TrackPiece(type='curve', direction='left'),
+        
+        # Final straight piece
         TrackPiece(type='straight'),
     ]
     
